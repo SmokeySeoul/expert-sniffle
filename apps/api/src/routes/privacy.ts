@@ -24,8 +24,7 @@ export async function privacyRoutes(app: FastifyInstance): Promise<void> {
         data: {
           userId,
           type: PrivacyJobType.EXPORT,
-          status: PrivacyJobStatus.QUEUED,
-          requestedAt: new Date(),
+          status: PrivacyJobStatus.PENDING,
         },
       });
 
@@ -33,7 +32,7 @@ export async function privacyRoutes(app: FastifyInstance): Promise<void> {
         userId,
         deviceId: request.authUser?.deviceId,
         sessionId: request.authUser?.sessionId,
-        action: 'privacy.export_requested',
+        action: 'privacy.export.requested',
         metadata: { jobId: job.id },
       });
 
@@ -130,7 +129,7 @@ export async function privacyRoutes(app: FastifyInstance): Promise<void> {
         userId,
         deviceId: request.authUser?.deviceId,
         sessionId: request.authUser?.sessionId,
-        action: 'privacy.download',
+        action: 'privacy.export.downloaded',
         metadata: { jobId: job.id },
       });
 
@@ -157,8 +156,7 @@ export async function privacyRoutes(app: FastifyInstance): Promise<void> {
         data: {
           userId,
           type: PrivacyJobType.DELETE,
-          status: PrivacyJobStatus.QUEUED,
-          requestedAt: new Date(),
+          status: PrivacyJobStatus.PENDING,
         },
       });
 
@@ -166,7 +164,7 @@ export async function privacyRoutes(app: FastifyInstance): Promise<void> {
         userId,
         deviceId: request.authUser?.deviceId,
         sessionId: request.authUser?.sessionId,
-        action: 'privacy.delete_requested',
+        action: 'privacy.delete.requested',
         metadata: { jobId: job.id },
       });
 
