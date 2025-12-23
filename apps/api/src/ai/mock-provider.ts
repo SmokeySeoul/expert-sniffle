@@ -72,7 +72,8 @@ export class MockProposalProvider implements ProposalProvider {
   ): Promise<ProposalResult<RecategorizeProposalPayload>> {
     const recommendations = subscriptions.map((subscription) => ({
       subscriptionId: subscription.id,
-      proposedCategory: subscription.category ?? 'general',
+      fromCategory: subscription.category ?? null,
+      toCategory: subscription.category ? `${subscription.category}-reviewed` : 'general',
       rationale: `Keeping ${subscription.name} under ${subscription.category ?? 'general'} for consistency.`,
     }));
 

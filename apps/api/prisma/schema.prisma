@@ -22,6 +22,7 @@ model User {
   subscriptions          Subscription[]
   auditLogs              AuditLog[]
   aiActionLogs           AIActionLog[]
+  aiPatches              AIPatch[]
   aiProposals            AIProposal[]
   notificationPreference NotificationPreference?
   notifications          Notification[]
@@ -143,6 +144,7 @@ model AIProposal {
   createdAt  DateTime         @default(now())
   expiresAt  DateTime         @default(dbgenerated("now() + interval '14 days'"))
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patches    AIPatch[]
 
   @@index([userId, createdAt])
   @@index([userId, status])
@@ -173,6 +175,8 @@ enum NotificationPriority {
 enum AIActionType {
   EXPLAIN
   PROPOSE
+  APPLY
+  ROLLBACK
 }
 
 enum AIProposalType {
@@ -184,4 +188,33 @@ enum AIProposalStatus {
   ACTIVE
   DISMISSED
   EXPIRED
+  APPLIED
+  ROLLED_BACK
+}
+
+model AIPatch {
+  id            String         @id @default(uuid())
+  userId        String
+  proposalId    String
+  type          AIPatchType
+  status        AIPatchStatus  @default(APPLIED)
+  forwardPatch  Json
+  rollbackPatch Json
+  appliedAt     DateTime       @default(now())
+  rolledBackAt  DateTime?
+  createdAt     DateTime       @default(now())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal      AIProposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([proposalId])
+}
+
+enum AIPatchType {
+  RECATEGORIZE
+}
+
+enum AIPatchStatus {
+  APPLIED
+  ROLLED_BACK
 }

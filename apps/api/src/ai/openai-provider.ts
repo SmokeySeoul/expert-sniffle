@@ -32,7 +32,8 @@ const recategorizeSchema = z.object({
       .array(
         z.object({
           subscriptionId: z.string(),
-          proposedCategory: z.string().min(1).max(50),
+          fromCategory: z.string().min(1).max(50).nullable(),
+          toCategory: z.string().min(1).max(50),
           rationale: z.string().min(1).max(400).optional(),
         }),
       )
@@ -77,7 +78,7 @@ export class OpenAIExplainProvider implements ExplainProvider, ProposalProvider 
       currency: subscription.currency,
       billingInterval: subscription.billingInterval,
       nextBillingDate: subscription.nextBillingDate,
-      category: subscription.category ?? 'uncategorized',
+      category: subscription.category,
       isTrial: subscription.isTrial,
     }));
 
@@ -162,7 +163,7 @@ export class OpenAIExplainProvider implements ExplainProvider, ProposalProvider 
       currency: subscription.currency,
       billingInterval: subscription.billingInterval,
       nextBillingDate: subscription.nextBillingDate,
-      category: subscription.category ?? 'uncategorized',
+      category: subscription.category,
       isTrial: subscription.isTrial,
     }));
 
