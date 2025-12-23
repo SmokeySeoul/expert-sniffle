@@ -1,8 +1,12 @@
 import { Worker } from 'bullmq';
+import { runNotificationSweep } from './notifications/service';
+import prisma from './prisma';
 import { createQueue, createRedisClient, getRedisUrl } from './queue';
 
-const QUEUE_NAME = 'example';
+const QUEUE_NAME = 'notifications';
+const JOB_NAME = 'notifications:sweep';
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+const REPEAT_EVERY_MS = 60 * 60 * 1000;
 
 async function startWorker(): Promise<void> {
   const queue = createQueue(QUEUE_NAME);
@@ -10,18 +14,17 @@ async function startWorker(): Promise<void> {
 
   const worker = new Worker(
     QUEUE_NAME,
-    async (job) => {
-      const { timestamp } = job.data as { timestamp?: string };
-      const runAt = timestamp ?? new Date().toISOString();
-      return { runAt, message: 'Worker executed job' };
+    async () => {
+      const result = await runNotificationSweep(prisma);
+      return result;
     },
     {
       connection: workerConnection,
     },
   );
 
-  worker.on('completed', (job) => {
-    console.log(`Job ${job.id} completed`);
+  worker.on('completed', (job, result) => {
+    console.log(`Job ${job.id} completed`, result);
   });
 
   worker.on('failed', (job, err) => {
@@ -38,12 +41,17 @@ async function startWorker(): Promise<void> {
 
   try {
     await queue.add(
-      'startup',
-      { timestamp: new Date().toISOString() },
-      { removeOnComplete: true, removeOnFail: true },
+      JOB_NAME,
+      {},
+      {
+        jobId: JOB_NAME,
+        removeOnComplete: true,
+        removeOnFail: true,
+        repeat: { every: REPEAT_EVERY_MS },
+      },
     );
   } catch (error) {
-    console.error('Failed to enqueue startup job', error);
+    console.error('Failed to enqueue notification sweep job', error);
   }
 
   const shutdown = async (signal: NodeJS.Signals) => {

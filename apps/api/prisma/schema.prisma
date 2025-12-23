@@ -21,6 +21,8 @@ model User {
   sessions               Session[]
   subscriptions          Subscription[]
   auditLogs              AuditLog[]
+  notificationPreference NotificationPreference?
+  notifications          Notification[]
 }
 
 model Device {
@@ -60,9 +62,41 @@ model Subscription {
   nextBillingDate DateTime
   category        String?
   active          Boolean         @default(true)
+  isTrial         Boolean         @default(false)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationPreference {
+  userId            String     @id
+  timezone          String     @default("UTC")
+  quietHoursEnabled Boolean    @default(true)
+  quietHoursStart   String     @default("21:00")
+  quietHoursEnd     String     @default("08:00")
+  digestMode        DigestMode @default(WEEKLY)
+  channels          Json       @default(dbgenerated("'{\"email\":true,\"push\":false}'::jsonb"))
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id            String               @id @default(uuid())
+  userId        String
+  type          NotificationType
+  title         String
+  body          String
+  scheduledFor  DateTime
+  sentAt        DateTime?
+  readAt        DateTime?
+  priority      NotificationPriority
+  metadata      Json
+  createdAt     DateTime             @default(now())
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledFor])
+  @@index([userId, readAt])
 }
 
 model AuditLog {
@@ -81,4 +115,21 @@ model AuditLog {
 enum BillingInterval {
   MONTHLY
   YEARLY
+}
+
+enum DigestMode {
+  OFF
+  WEEKLY
+  MONTHLY
+}
+
+enum NotificationType {
+  TRIAL_ENDING
+  RENEWAL_UPCOMING
+  ANNUAL_WARNING
+}
+
+enum NotificationPriority {
+  IMPORTANT
+  INFO
 }
