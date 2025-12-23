@@ -50,3 +50,17 @@ Environment defaults:
 - **Redis/Postgres not ready**: Containers may take a few seconds to pass health checks; the API and worker wait on healthy dependencies in `docker-compose.yml`.
 - **Port conflicts**: If `3333`, `5432`, or `6379` are in use locally, adjust or export alternative port mappings in `docker-compose.yml`.
 - **Stale dependencies**: If builds fail, try `npm ci --force` to reinstall clean dependencies.
+
+## Contributing / PR Rules
+- Always open PRs to `main`.
+- CI must pass.
+- No secrets in commits.
+- Use environment variable examples.
+
+## Branch protection setup
+1. In GitHub, go to **Settings** → **Branches** → **Branch protection rules** → **Add rule**.
+2. Set **Branch name pattern** to `main`.
+3. Enable **Require a pull request before merging**.
+4. Enable **Require status checks to pass before merging**, then select the CI workflow.
+5. Disallow force pushes.
+6. (Optional) Enable **Require linear history**.
