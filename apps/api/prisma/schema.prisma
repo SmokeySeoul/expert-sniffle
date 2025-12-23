@@ -21,6 +21,7 @@ model User {
   sessions               Session[]
   subscriptions          Subscription[]
   auditLogs              AuditLog[]
+  aiActionLogs           AIActionLog[]
   notificationPreference NotificationPreference?
   notifications          Notification[]
 }
@@ -112,6 +113,23 @@ model AuditLog {
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 }
 
+model AIActionLog {
+  id             String        @id @default(uuid())
+  userId         String
+  actionType     AIActionType
+  topic          String
+  inputRedacted  Json
+  outputSummary  String        @db.VarChar(500)
+  confidence     Float?
+  provider       String
+  success        Boolean
+  latencyMs      Int
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
 enum BillingInterval {
   MONTHLY
   YEARLY
@@ -132,4 +150,8 @@ enum NotificationType {
 enum NotificationPriority {
   IMPORTANT
   INFO
+}
+
+enum AIActionType {
+  EXPLAIN
 }
