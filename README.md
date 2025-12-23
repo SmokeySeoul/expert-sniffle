@@ -60,6 +60,11 @@ Environment defaults:
 - `REDIS_URL`: `redis://redis:6379`
 - `DATABASE_URL`: `postgresql://substream:substream@postgres:5432/substream?schema=public`
 
+## Notifications
+- The worker (`npm run worker --workspace api`) runs an hourly sweep that generates upcoming notifications and marks due items as sent (no external providers yet).
+- Upcoming notifications are created when subscription billing dates fall inside the defined trial (48h), renewal (3 days), or annual (14 days) windows. Idempotency prevents duplicates per subscription and billing date.
+- Quiet hours are enforced per user preference (default 21:00–08:00 UTC). If a notification is scheduled during quiet hours, it is deferred to the quietHoursEnd boundary.
+
 ## Common issues
 - **Redis/Postgres not ready**: Containers may take a few seconds to pass health checks; the API and worker wait on healthy dependencies in `docker-compose.yml`.
 - **Port conflicts**: If `3333`, `5432`, or `6379` are in use locally, adjust or export alternative port mappings in `docker-compose.yml`.

@@ -9,6 +9,7 @@ type SubscriptionBody = {
   billingInterval: 'MONTHLY' | 'YEARLY';
   nextBillingDate: string;
   category?: string;
+  isTrial?: boolean;
 };
 
 type SubscriptionPatchBody = Partial<SubscriptionBody> & { active?: boolean };
@@ -45,6 +46,7 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
             billingInterval: { type: 'string', enum: ['MONTHLY', 'YEARLY'] },
             nextBillingDate: { type: 'string', format: 'date-time' },
             category: { type: 'string' },
+            isTrial: { type: 'boolean' },
           },
         },
       },
@@ -61,6 +63,7 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
           billingInterval: body.billingInterval,
           nextBillingDate: new Date(body.nextBillingDate),
           category: body.category,
+          isTrial: body.isTrial ?? false,
         },
       });
 
@@ -91,6 +94,7 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
             nextBillingDate: { type: 'string', format: 'date-time' },
             category: { type: 'string' },
             active: { type: 'boolean' },
+            isTrial: { type: 'boolean' },
           },
         },
       },
@@ -121,6 +125,7 @@ export async function subscriptionRoutes(app: FastifyInstance): Promise<void> {
               : existing.nextBillingDate,
           category: body.category ?? existing.category,
           active: body.active ?? existing.active,
+          isTrial: body.isTrial ?? existing.isTrial,
         },
       });
 
