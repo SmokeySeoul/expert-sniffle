@@ -11,11 +11,14 @@ const baseCredentials = {
 
 const EXPORT_DIR = path.join(process.cwd(), 'tmp-exports');
 
-async function register(app: ReturnType<typeof buildServer>): Promise<{ accessToken: string }> {
+async function register(
+  app: ReturnType<typeof buildServer>,
+  email: string = baseCredentials.email,
+): Promise<{ accessToken: string }> {
   const response = await app.inject({
     method: 'POST',
     url: '/api/auth/register',
-    payload: { ...baseCredentials, deviceName: 'Laptop' },
+    payload: { ...baseCredentials, email, deviceName: 'Laptop' },
   });
 
   expect(response.statusCode).toBe(201);
@@ -57,7 +60,7 @@ describe('privacy jobs', () => {
     expect(job.filePath).toBeTruthy();
     expect(job.expiresAt).toBeTruthy();
     expect(job.startedAt).toBeTruthy();
-    expect(job.finishedAt).toBeTruthy();
+    expect(job.completedAt).toBeTruthy();
 
     await app.close();
   });
@@ -136,6 +139,37 @@ describe('privacy jobs', () => {
     expect(await prisma.subscription.count()).toBe(0);
     expect(await prisma.device.count()).toBe(0);
     expect(await prisma.session.count()).toBe(0);
+    expect(await prisma.auditLog.count()).toBe(0);
+
+    await app.close();
+  });
+
+  it('prevents cross-user access to jobs and downloads', async () => {
+    const app = buildServer();
+    const { accessToken: ownerToken } = await register(app);
+
+    const exportResp = await app.inject({
+      method: 'POST',
+      url: '/api/privacy/export',
+      headers: { authorization: `Bearer ${ownerToken}` },
+    });
+
+    const { jobId } = exportResp.json() as { jobId: string };
+    const other = await register(app, 'privacy-2@example.com');
+
+    const otherJob = await app.inject({
+      method: 'GET',
+      url: `/api/privacy/jobs/${jobId}`,
+      headers: { authorization: `Bearer ${other.accessToken}` },
+    });
+    expect(otherJob.statusCode).toBe(404);
+
+    const download = await app.inject({
+      method: 'GET',
+      url: `/api/privacy/jobs/${jobId}/download`,
+      headers: { authorization: `Bearer ${other.accessToken}` },
+    });
+    expect(download.statusCode).toBe(404);
 
     await app.close();
   });

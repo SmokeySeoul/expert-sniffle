@@ -137,13 +137,11 @@ model PrivacyJob {
   id          String           @id @default(uuid())
   userId      String?
   type        PrivacyJobType
-  status      PrivacyJobStatus
-  requestedAt DateTime
+  status      PrivacyJobStatus @default(PENDING)
   startedAt   DateTime?
-  finishedAt  DateTime?
+  completedAt DateTime?
   expiresAt   DateTime?
   filePath    String?
-  error       String?
   createdAt   DateTime         @default(now())
   user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -157,7 +155,7 @@ enum PrivacyJobType {
 }
 
 enum PrivacyJobStatus {
-  QUEUED
+  PENDING
   RUNNING
   SUCCEEDED
   FAILED

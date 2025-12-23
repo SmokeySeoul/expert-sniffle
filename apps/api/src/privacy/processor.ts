@@ -211,7 +211,7 @@ export async function processPrivacyJob(jobId: string): Promise<void> {
     return;
   }
 
-  if (job.status !== PrivacyJobStatus.QUEUED) {
+  if (job.status !== PrivacyJobStatus.PENDING) {
     return;
   }
 
@@ -220,8 +220,7 @@ export async function processPrivacyJob(jobId: string): Promise<void> {
       where: { id: jobId },
       data: {
         status: PrivacyJobStatus.FAILED,
-        finishedAt: new Date(),
-        error: 'Job missing user',
+        completedAt: new Date(),
       },
     });
     return;
@@ -230,17 +229,22 @@ export async function processPrivacyJob(jobId: string): Promise<void> {
   const startedAt = new Date();
   await prisma.privacyJob.update({
     where: { id: jobId },
-    data: { status: PrivacyJobStatus.RUNNING, startedAt, error: null },
+    data: { status: PrivacyJobStatus.RUNNING, startedAt },
   });
 
   try {
     if (job.type === PrivacyJobType.EXPORT) {
       const result = await writeExportZip(job.id, job.userId);
+      await recordAuditLog({
+        userId: job.userId,
+        action: 'privacy.export.completed',
+        metadata: { jobId: job.id },
+      });
       await prisma.privacyJob.update({
         where: { id: jobId },
         data: {
           status: PrivacyJobStatus.SUCCEEDED,
-          finishedAt: new Date(),
+          completedAt: new Date(),
           filePath: result.path,
           expiresAt: result.expiresAt,
         },
@@ -248,27 +252,26 @@ export async function processPrivacyJob(jobId: string): Promise<void> {
     } else if (job.type === PrivacyJobType.DELETE) {
       await recordAuditLog({
         userId: job.userId,
-        action: 'privacy.delete_completed',
+        action: 'privacy.delete.completed',
+        metadata: { jobId: job.id },
       });
       await deleteUserData(job.userId);
       await prisma.privacyJob.update({
         where: { id: jobId },
         data: {
           status: PrivacyJobStatus.SUCCEEDED,
-          finishedAt: new Date(),
+          completedAt: new Date(),
           expiresAt: null,
           filePath: null,
         },
       });
     }
   } catch (error) {
-    const message = (error as Error).message?.slice(0, 200) ?? 'Unknown error';
     await prisma.privacyJob.update({
       where: { id: jobId },
       data: {
         status: PrivacyJobStatus.FAILED,
-        finishedAt: new Date(),
-        error: message,
+        completedAt: new Date(),
       },
     });
   }

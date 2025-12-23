@@ -61,6 +61,7 @@ Environment defaults:
 - `DATABASE_URL`: `postgresql://substream:substream@postgres:5432/substream?schema=public`
 - `EXPORT_DIR`: `/usr/src/app/exports`
 - `EXPORT_TTL_HOURS`: `24`
+- `INLINE_PRIVACY_WORKER`: `false` (set `true` to process privacy jobs inline without Redis for tests/local)
 
 ## Notifications
 - The worker (`npm run worker --workspace api`) runs an hourly sweep that generates upcoming notifications and marks due items as sent (no external providers yet).
@@ -76,13 +77,17 @@ Environment defaults:
 - Environment variables:
   - `EXPORT_DIR`: Directory where privacy export zip files are written.
   - `EXPORT_TTL_HOURS`: Hours before a generated export expires (download is blocked after expiry).
+  - `INLINE_PRIVACY_WORKER`: Run privacy jobs inline without Redis (useful for tests).
 - Workers:
   - Privacy and notification jobs run via `npm run worker --workspace api`.
-  - Privacy jobs are processed on the `privacy` BullMQ queue.
+  - Privacy jobs are processed on the `privacy` BullMQ queue when the inline worker flag is not set.
 - API:
-  - `/api/privacy/export` creates an export job and returns a job id for status + download checks.
-  - `/api/privacy/delete` requires `{ "confirm": "DELETE" }` and enqueues a hard delete job (sessions revoked, data removed).
-  - `/api/privacy/jobs` and `/api/privacy/jobs/:id` expose job status; `/api/privacy/jobs/:id/download` serves completed exports until expiry.
+  - `POST /api/privacy/export` creates an export job and returns a job id for status + download checks.
+  - `POST /api/privacy/delete` requires `{ "confirm": "DELETE" }` and enqueues a hard delete job (sessions revoked, data removed).
+  - `GET /api/privacy/jobs` and `GET /api/privacy/jobs/:id` expose job status; `GET /api/privacy/jobs/:id/download` serves completed exports until expiry for the owning user.
+- Data handling:
+  - Exports include users, devices, sessions, subscriptions, notifications, AI logs, proposals, patches, and audit logs in CSV form, zipped per request and gated by expiry.
+  - Delete jobs revoke sessions first and then hard-delete user data (cascades applied), with explicit confirmation required and audit entries recorded for request/completion/download events.
 
 ## Contributing / PR Rules
 - Always open PRs to `main`.
