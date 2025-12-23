@@ -79,8 +79,8 @@ describe('trust center permissions', () => {
     const authHeader = { authorization: `Bearer ${accessToken}` };
 
     const denied = await app.inject({
-      method: 'POST',
-      url: '/api/ai/assist',
+      method: 'GET',
+      url: '/api/ai/status',
       headers: authHeader,
     });
 
@@ -95,14 +95,15 @@ describe('trust center permissions', () => {
     });
 
     const allowed = await app.inject({
-      method: 'POST',
-      url: '/api/ai/assist',
+      method: 'GET',
+      url: '/api/ai/status',
       headers: authHeader,
     });
 
     expect(allowed.statusCode).toBe(200);
-    const payload = allowed.json() as { message: string };
-    expect(payload.message).toContain('enabled');
+    const payload = allowed.json() as { enabled: boolean; provider: string };
+    expect(payload.enabled).toBe(true);
+    expect(payload.provider.length).toBeGreaterThan(0);
 
     await app.close();
   });

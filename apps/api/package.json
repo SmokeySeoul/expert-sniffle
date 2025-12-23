@@ -30,7 +30,9 @@
     "fastify": "^5.0.0",
     "fastify-plugin": "^5.1.0",
     "ioredis": "^5.4.1",
-    "prisma": "^5.21.1"
+    "openai": "^4.77.4",
+    "prisma": "^5.21.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.5.5",
