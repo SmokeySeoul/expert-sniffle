@@ -22,6 +22,7 @@ COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/apps/api/package*.json ./apps/api/
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/apps/api/dist ./apps/api/dist
+COPY --from=builder /usr/src/app/apps/api/prisma ./apps/api/prisma
 
 EXPOSE 3333
 CMD ["node", "apps/api/dist/index.js"]

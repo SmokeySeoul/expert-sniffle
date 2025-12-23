@@ -18,6 +18,11 @@ Run the API only:
 npm run dev --workspace api
 ```
 
+Run database migrations (Postgres must be available at `DATABASE_URL`):
+```bash
+npm run prisma:migrate --workspace api
+```
+
 Run workers only:
 ```bash
 npm run worker --workspace api
@@ -35,6 +40,8 @@ The API listens on `http://localhost:3333` with a health endpoint at `/api/healt
 npm run -ws typecheck
 npm test --workspace api
 ```
+
+The test suite exercises authenticated endpoints and requires a running Postgres instance with `DATABASE_URL` set (defaults to `postgresql://substream:substream@localhost:5432/substream?schema=public`).
 
 ## Docker beta stack
 Build and start Postgres, Redis, API, and worker containers:
