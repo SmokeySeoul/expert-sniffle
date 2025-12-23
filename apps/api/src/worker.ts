@@ -2,6 +2,8 @@ import { Worker } from 'bullmq';
 import { runNotificationSweep } from './notifications/service';
 import prisma from './prisma';
 import { createQueue, createRedisClient, getRedisUrl } from './queue';
+import { processPrivacyJob } from './privacy/processor';
+import { PRIVACY_QUEUE_NAME } from './privacy/queue';
 
 const QUEUE_NAME = 'notifications';
 const JOB_NAME = 'notifications:sweep';
@@ -10,6 +12,7 @@ const REPEAT_EVERY_MS = 60 * 60 * 1000;
 
 async function startWorker(): Promise<void> {
   const queue = createQueue(QUEUE_NAME);
+  const privacyQueue = createQueue(PRIVACY_QUEUE_NAME);
   const workerConnection = createRedisClient();
 
   const worker = new Worker(
@@ -31,8 +34,25 @@ async function startWorker(): Promise<void> {
     console.error(`Job ${job?.id ?? 'unknown'} failed`, err);
   });
 
+  const privacyWorker = new Worker(
+    PRIVACY_QUEUE_NAME,
+    async (job) => {
+      await processPrivacyJob(job.data.jobId);
+    },
+    { connection: workerConnection },
+  );
+
+  privacyWorker.on('completed', (job) => {
+    console.log(`Privacy job ${job.id} completed`);
+  });
+
+  privacyWorker.on('failed', (job, err) => {
+    console.error(`Privacy job ${job?.id ?? 'unknown'} failed`, err);
+  });
+
   try {
     await worker.waitUntilReady();
+    await privacyWorker.waitUntilReady();
     console.log(`Worker connected to Redis at ${getRedisUrl()}`);
   } catch (error) {
     console.error('Worker failed to start', error);
@@ -69,10 +89,24 @@ async function startWorker(): Promise<void> {
     }
 
     try {
+      await privacyWorker.close();
+      console.log('Privacy worker stopped');
+    } catch (error) {
+      console.error('Error closing privacy worker', error);
+    }
+
+    try {
       await queue.close();
       console.log('Queue connection closed');
     } catch (error) {
       console.error('Error closing queue connection', error);
+    }
+
+    try {
+      await privacyQueue.close();
+      console.log('Privacy queue connection closed');
+    } catch (error) {
+      console.error('Error closing privacy queue connection', error);
     }
 
     try {
