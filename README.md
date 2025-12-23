@@ -59,6 +59,8 @@ Environment defaults:
 - `PORT`: `3333`
 - `REDIS_URL`: `redis://redis:6379`
 - `DATABASE_URL`: `postgresql://substream:substream@postgres:5432/substream?schema=public`
+- `EXPORT_DIR`: `/usr/src/app/exports`
+- `EXPORT_TTL_HOURS`: `24`
 
 ## Notifications
 - The worker (`npm run worker --workspace api`) runs an hourly sweep that generates upcoming notifications and marks due items as sent (no external providers yet).
@@ -69,6 +71,18 @@ Environment defaults:
 - **Redis/Postgres not ready**: Containers may take a few seconds to pass health checks; the API and worker wait on healthy dependencies in `docker-compose.yml`.
 - **Port conflicts**: If `3333`, `5432`, or `6379` are in use locally, adjust or export alternative port mappings in `docker-compose.yml`.
 - **Stale dependencies**: If builds fail, try `npm ci --force` to reinstall clean dependencies.
+
+## Privacy exports and deletion
+- Environment variables:
+  - `EXPORT_DIR`: Directory where privacy export zip files are written.
+  - `EXPORT_TTL_HOURS`: Hours before a generated export expires (download is blocked after expiry).
+- Workers:
+  - Privacy and notification jobs run via `npm run worker --workspace api`.
+  - Privacy jobs are processed on the `privacy` BullMQ queue.
+- API:
+  - `/api/privacy/export` creates an export job and returns a job id for status + download checks.
+  - `/api/privacy/delete` requires `{ "confirm": "DELETE" }` and enqueues a hard delete job (sessions revoked, data removed).
+  - `/api/privacy/jobs` and `/api/privacy/jobs/:id` expose job status; `/api/privacy/jobs/:id/download` serves completed exports until expiry.
 
 ## Contributing / PR Rules
 - Always open PRs to `main`.

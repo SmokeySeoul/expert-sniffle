@@ -26,6 +26,7 @@ model User {
   aiProposals            AIProposal[]
   notificationPreference NotificationPreference?
   notifications          Notification[]
+  privacyJobs            PrivacyJob[]
 }
 
 model Device {
@@ -130,6 +131,36 @@ model AIActionLog {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+model PrivacyJob {
+  id          String           @id @default(uuid())
+  userId      String?
+  type        PrivacyJobType
+  status      PrivacyJobStatus
+  requestedAt DateTime
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  expiresAt   DateTime?
+  filePath    String?
+  error       String?
+  createdAt   DateTime         @default(now())
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+enum PrivacyJobType {
+  EXPORT
+  DELETE
+}
+
+enum PrivacyJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
 }
 
 model AIProposal {

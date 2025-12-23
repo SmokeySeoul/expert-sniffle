@@ -15,6 +15,7 @@ import { trustCenterRoutes } from './routes/trust-center';
 import { auditRoutes } from './routes/audit';
 import { aiRoutes } from './routes/ai';
 import { notificationRoutes } from './routes/notifications';
+import { privacyRoutes } from './routes/privacy';
 import { createRedisClient } from './queue';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -43,6 +44,7 @@ export function buildServer(): FastifyInstance {
   app.register(auditRoutes, { prefix: '/api/audit' });
   app.register(aiRoutes, { prefix: '/api/ai' });
   app.register(notificationRoutes, { prefix: '/api/notifications' });
+  app.register(privacyRoutes, { prefix: '/api/privacy' });
 
   app.setErrorHandler((error, request, reply) => {
     const statusCode = (error as { statusCode?: number }).statusCode;
