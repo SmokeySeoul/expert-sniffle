@@ -8,15 +8,19 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(uuid())
-  email        String         @unique
-  passwordHash String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  devices      Device[]
-  sessions     Session[]
-  subscriptions Subscription[]
-  auditLogs    AuditLog[]
+  id                     String         @id @default(uuid())
+  email                  String         @unique
+  passwordHash           String
+  bankConnectionsEnabled Boolean        @default(false)
+  emailParsingEnabled    Boolean        @default(false)
+  aiAssistEnabled        Boolean        @default(false)
+  autopilotEnabled       Boolean        @default(false)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  devices                Device[]
+  sessions               Session[]
+  subscriptions          Subscription[]
+  auditLogs              AuditLog[]
 }
 
 model Device {
