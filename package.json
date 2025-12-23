@@ -1,0 +1,16 @@
+{
+  "name": "substream-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace api",
+    "test": "npm test --workspace api"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

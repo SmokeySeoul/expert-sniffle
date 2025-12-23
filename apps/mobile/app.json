@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Substream",
+    "slug": "substream",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "sdkVersion": "50.0.0"
+  }
+}

@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AIActionType {
+  EXPLAIN
+  PROPOSE
+  APPLY
+  ROLLBACK
+}
+
+enum AIProposalType {
+  RECATEGORIZE
+  SAVINGS_LIST
+}
+
+enum AIProposalStatus {
+  ACTIVE
+  DISMISSED
+  EXPIRED
+  APPLIED
+  ROLLED_BACK
+}
+
+enum AIPatchStatus {
+  APPLIED
+  ROLLED_BACK
+}
+
+enum PrivacyJobType {
+  EXPORT
+  DELETE
+}
+
+enum PrivacyJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum ConnectionProvider {
+  PLAID
+  MOCK
+}
+
+enum ConnectionStatus {
+  DISABLED
+  PENDING
+  ACTIVE
+  ERROR
+  REVOKED
+}
+
+enum ConnectionType {
+  BANK
+}
+
+enum DetectedStatus {
+  NEW
+  ACCEPTED
+  DISMISSED
+  MERGED
+}
+
+model User {
+  id                String                @id @default(cuid())
+  email             String                @unique
+  passwordHash      String
+  aiAssistEnabled   Boolean               @default(false)
+  bankConnectionsEnabled Boolean          @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  sessions          Session[]
+  devices           Device[]
+  subscriptions     Subscription[]
+  connections       Connection[]
+  detectedSubs      DetectedSubscription[]
+  aiLogs            AIActionLog[]
+  auditLogs         AuditLog[]
+  proposals         AIProposal[]
+  patches           AIPatch[]
+  privacyJobs       PrivacyJob[]
+}
+
+model Device {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  name       String
+  createdAt  DateTime @default(now())
+  auditLogs  AuditLog[]
+  sessions   Session[]
+  proposals  AIProposal[]
+  patches    AIPatch[]
+  privacyJobs PrivacyJob[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  device       Device   @relation(fields: [deviceId], references: [id])
+  deviceId     String
+  refreshToken String
+  createdAt    DateTime @default(now())
+  auditLogs    AuditLog[]
+  proposals    AIProposal[]
+  patches      AIPatch[]
+  privacyJobs  PrivacyJob[]
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  name            String
+  amount          Float
+  currency        String
+  billingInterval String
+  category        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Connection {
+  id              String             @id @default(cuid())
+  user            User               @relation(fields: [userId], references: [id])
+  userId          String
+  provider        ConnectionProvider
+  type            ConnectionType
+  status          ConnectionStatus   @default(PENDING)
+  scopes          String             @default("read_only")
+  institutionName String?
+  externalId      String?
+  encryptedToken  String?
+  tokenIv         String?
+  lastSyncedAt    DateTime?
+  cursor          String?
+  revokedAt       DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  detected        DetectedSubscription[]
+}
+
+model DetectedSubscription {
+  id              String          @id @default(cuid())
+  user            User            @relation(fields: [userId], references: [id])
+  userId          String
+  connection      Connection      @relation(fields: [connectionId], references: [id])
+  connectionId    String
+  name            String
+  amount          Float
+  currency        String
+  billingInterval String
+  confidence      Float
+  evidence        Json
+  status          DetectedStatus  @default(NEW)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model AIActionLog {
+  id            String        @id @default(cuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  device        Device?       @relation(fields: [deviceId], references: [id])
+  deviceId      String?
+  session       Session?      @relation(fields: [sessionId], references: [id])
+  sessionId     String?
+  actionType    AIActionType
+  topic         String
+  inputSummary  Json
+  outputSummary Json
+  provider      String
+  latencyMs     Int
+  success       Boolean
+  createdAt     DateTime      @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AIProposal {
+  id          String            @id @default(cuid())
+  user        User              @relation(fields: [userId], references: [id])
+  userId      String
+  device      Device?           @relation(fields: [deviceId], references: [id])
+  deviceId    String?
+  session     Session?          @relation(fields: [sessionId], references: [id])
+  sessionId   String?
+  type        AIProposalType
+  status      AIProposalStatus  @default(ACTIVE)
+  title       String
+  summary     String
+  payload     Json
+  confidence  Float?
+  createdAt   DateTime          @default(now())
+  expiresAt   DateTime
+  appliedPatch AIPatch?         @relation(fields: [appliedPatchId], references: [id])
+  appliedPatchId String?
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  device    Device?  @relation(fields: [deviceId], references: [id])
+  deviceId  String?
+  session   Session? @relation(fields: [sessionId], references: [id])
+  sessionId String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model AIPatch {
+  id            String         @id @default(cuid())
+  user          User           @relation(fields: [userId], references: [id])
+  userId        String
+  proposal      AIProposal     @relation(fields: [proposalId], references: [id])
+  proposalId    String
+  status        AIPatchStatus
+  patch         Json
+  inversePatch  Json
+  appliedAt     DateTime
+  rolledBackAt  DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PrivacyJob {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  device    Device?          @relation(fields: [deviceId], references: [id])
+  deviceId  String?
+  session   Session?         @relation(fields: [sessionId], references: [id])
+  sessionId String?
+  type      PrivacyJobType
+  status    PrivacyJobStatus
+  error     String?
+  filePath  String?
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId, createdAt])
+}
