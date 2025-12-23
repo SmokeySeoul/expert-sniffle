@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { RecategorizeProposalPayload } from '../src/ai/types';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildServer } from '../src/index';
 import { prisma, resetDatabase } from './helpers';
@@ -309,6 +310,280 @@ describe('ai proposal endpoints', () => {
 
     const auditLogs = await prisma.auditLog.findMany({ where: { userId, action: 'ai.proposal.dismissed' } });
     expect(auditLogs.length).toBeGreaterThan(0);
+
+    await app.close();
+  });
+});
+
+describe('ai apply and patch endpoints', () => {
+  it('applies recategorize proposals and creates patches with logs', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'apply@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'StreamingPlus',
+        amount: new Prisma.Decimal(14.99),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+        category: 'entertainment',
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    const proposal = creation.json() as { id: string; payload: RecategorizeProposalPayload };
+    const recommendation = proposal.payload.recommendations[0];
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${proposal.id}/apply`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const patch = response.json() as {
+      id: string;
+      status: string;
+      forwardPatch: { recommendations: { subscriptionId: string; toCategory: string }[] };
+    };
+
+    expect(patch.status).toBe('APPLIED');
+    expect(patch.forwardPatch.recommendations[0]?.toCategory).toBe(recommendation.toCategory);
+
+    const updatedSubscription = await prisma.subscription.findUniqueOrThrow({ where: { id: subscription.id } });
+    expect(updatedSubscription.category).toBe(recommendation.toCategory);
+
+    const storedProposal = await prisma.aIProposal.findUniqueOrThrow({ where: { id: proposal.id } });
+    expect(storedProposal.status).toBe('APPLIED');
+
+    const storedPatch = await prisma.aIPatch.findUniqueOrThrow({ where: { id: patch.id } });
+    expect(storedPatch.forwardPatch).toBeDefined();
+
+    const auditLogs = await prisma.auditLog.findMany({
+      where: { userId, action: { in: ['ai.apply_requested', 'ai.apply_succeeded'] } },
+    });
+    expect(auditLogs.some((log) => log.action === 'ai.apply_requested')).toBe(true);
+    expect(auditLogs.some((log) => log.action === 'ai.apply_succeeded')).toBe(true);
+
+    const actionLogs = await prisma.aIActionLog.findMany({ where: { userId, actionType: 'APPLY' } });
+    expect(actionLogs.length).toBeGreaterThan(0);
+    expect(actionLogs[0]?.success).toBe(true);
+
+    await app.close();
+  });
+
+  it('returns 409 when categories are stale', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'stale@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'CloudBox',
+        amount: new Prisma.Decimal(6.5),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+        category: 'storage',
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    const proposal = creation.json() as { id: string };
+
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { category: 'modified' },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${proposal.id}/apply`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(409);
+
+    const patchCount = await prisma.aIPatch.count({ where: { userId } });
+    expect(patchCount).toBe(0);
+
+    await app.close();
+  });
+
+  it('rejects applying savings proposals', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'savings-apply@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'SavingsSub',
+        amount: new Prisma.Decimal(12.5),
+        currency: 'USD',
+        billingInterval: 'YEARLY',
+        nextBillingDate: new Date(),
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'SAVINGS_LIST', subscriptionIds: [subscription.id] },
+    });
+
+    const proposal = creation.json() as { id: string };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${proposal.id}/apply`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(400);
+
+    const storedProposal = await prisma.aIProposal.findUniqueOrThrow({ where: { id: proposal.id } });
+    expect(storedProposal.status).toBe('ACTIVE');
+
+    await app.close();
+  });
+
+  it('rolls back patches and restores categories', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'rollback@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'RollService',
+        amount: new Prisma.Decimal(4.99),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+        category: 'tools',
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    const proposal = creation.json() as { id: string; payload: RecategorizeProposalPayload };
+    const recommendation = proposal.payload.recommendations[0];
+
+    const applyResponse = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${proposal.id}/apply`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    const patch = applyResponse.json() as { id: string };
+
+    const rollbackResponse = await app.inject({
+      method: 'POST',
+      url: `/api/ai/patches/${patch.id}/rollback`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(rollbackResponse.statusCode).toBe(200);
+
+    const updatedSubscription = await prisma.subscription.findUniqueOrThrow({ where: { id: subscription.id } });
+    expect(updatedSubscription.category).toBe(recommendation.fromCategory);
+
+    const updatedPatch = await prisma.aIPatch.findUniqueOrThrow({ where: { id: patch.id } });
+    expect(updatedPatch.status).toBe('ROLLED_BACK');
+    expect(updatedPatch.rolledBackAt).not.toBeNull();
+
+    const updatedProposal = await prisma.aIProposal.findUniqueOrThrow({ where: { id: proposal.id } });
+    expect(updatedProposal.status).toBe('ROLLED_BACK');
+
+    const auditLogs = await prisma.auditLog.findMany({
+      where: { userId, action: { in: ['ai.rollback_requested', 'ai.rollback_succeeded'] } },
+    });
+    expect(auditLogs.some((log) => log.action === 'ai.rollback_requested')).toBe(true);
+    expect(auditLogs.some((log) => log.action === 'ai.rollback_succeeded')).toBe(true);
+
+    const actionLogs = await prisma.aIActionLog.findMany({ where: { userId, actionType: 'ROLLBACK' } });
+    expect(actionLogs.length).toBeGreaterThan(0);
+    expect(actionLogs[0]?.success).toBe(true);
+
+    await app.close();
+  });
+
+  it('prevents cross-user apply and rollback access', async () => {
+    const app = buildServer();
+    const { token: ownerToken, userId } = await registerUser(app, 'owner-apply@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'OwnerApply',
+        amount: new Prisma.Decimal(8),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+        category: 'entertainment',
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    const proposal = creation.json() as { id: string };
+
+    const other = await registerUser(app, 'other-apply@example.com');
+    await prisma.user.update({ where: { id: other.userId }, data: { aiAssistEnabled: true } });
+
+    const applyResponse = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${proposal.id}/apply`,
+      headers: { authorization: `Bearer ${other.token}` },
+    });
+
+    expect(applyResponse.statusCode).toBe(404);
+
+    const applyOwner = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${proposal.id}/apply`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+    });
+
+    const patch = applyOwner.json() as { id: string };
+
+    const rollbackResponse = await app.inject({
+      method: 'POST',
+      url: `/api/ai/patches/${patch.id}/rollback`,
+      headers: { authorization: `Bearer ${other.token}` },
+    });
+
+    expect(rollbackResponse.statusCode).toBe(404);
 
     await app.close();
   });

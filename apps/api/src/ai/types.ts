@@ -31,7 +31,8 @@ export type ExplainResult = {
 export type RecategorizeProposalPayload = {
   recommendations: {
     subscriptionId: string;
-    proposedCategory: string;
+    fromCategory: string | null;
+    toCategory: string;
     rationale?: string;
   }[];
 };
