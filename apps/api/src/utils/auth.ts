@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { createHash, randomUUID } from 'crypto';
 import { FastifyInstance } from 'fastify';
 import { User } from '@prisma/client';
 import { ACCESS_TOKEN_TTL, HASH_SALT_ROUNDS, REFRESH_TOKEN_TTL } from '../config';
@@ -19,10 +20,16 @@ export async function verifyPassword(password: string, passwordHash: string): Pr
 }
 
 export async function hashToken(token: string): Promise<string> {
-  return bcrypt.hash(token, HASH_SALT_ROUNDS);
+  const digest = createHash('sha256').update(token).digest('hex');
+  return bcrypt.hash(digest, HASH_SALT_ROUNDS);
 }
 
 export async function tokensMatch(token: string, tokenHash: string): Promise<boolean> {
+  const digest = createHash('sha256').update(token).digest('hex');
+  if (await bcrypt.compare(digest, tokenHash)) {
+    return true;
+  }
+
   return bcrypt.compare(token, tokenHash);
 }
 
@@ -34,7 +41,10 @@ export function buildRefreshToken(
   app: FastifyInstance,
   payload: TokenPayload & { type?: 'refresh' },
 ): string {
-  return app.jwt.sign({ ...payload, type: 'refresh' }, { expiresIn: REFRESH_TOKEN_TTL });
+  return app.jwt.sign(
+    { ...payload, type: 'refresh', jti: randomUUID() },
+    { expiresIn: REFRESH_TOKEN_TTL },
+  );
 }
 
 export function sanitizeUser(user: User): Pick<User, 'id' | 'email' | 'createdAt' | 'updatedAt'> {

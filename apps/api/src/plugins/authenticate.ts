@@ -7,6 +7,7 @@ export interface TokenPayload {
   sessionId: string;
   deviceId?: string;
   type?: 'refresh';
+  jti?: string;
 }
 
 declare module '@fastify/jwt' {

@@ -43,6 +43,13 @@ npm test --workspace api
 
 The test suite exercises authenticated endpoints and requires a running Postgres instance with `DATABASE_URL` set (defaults to `postgresql://substream:substream@localhost:5432/substream?schema=public`).
 
+## Trust Center & permissions
+- The Trust Center exposes user-controlled permission toggles at `/api/trust-center` (GET + PATCH). Flags ship **default-deny**: bank connections, email parsing, AI assistance, and autopilot are all off until explicitly enabled per user.
+- Each flag includes explanation text in responses so users can see the impact of every toggle.
+- All permission changes emit an audit log (`trust.permission.updated`) with the previous and new values for transparency.
+- AI features are permission-gated: when AI assistance is disabled, `/api/ai/assist` returns `{"error":"AI assistance disabled"}`.
+- Audit visibility is available at `/api/audit` (newest → oldest, paginated) with sensitive metadata redacted before returning to the client.
+
 ## Docker beta stack
 Build and start Postgres, Redis, API, and worker containers:
 ```bash
