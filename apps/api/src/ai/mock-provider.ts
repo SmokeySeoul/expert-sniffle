@@ -1,4 +1,13 @@
-import { ExplainProvider, ExplainResult, ExplainTopic, SubscriptionSummary } from './types';
+import {
+  ExplainProvider,
+  ExplainResult,
+  ExplainTopic,
+  ProposalProvider,
+  ProposalResult,
+  RecategorizeProposalPayload,
+  SavingsListProposalPayload,
+  SubscriptionSummary,
+} from './types';
 
 function intervalLabel(interval: SubscriptionSummary['billingInterval']): string {
   return interval === 'YEARLY' ? 'yearly' : 'monthly';
@@ -52,5 +61,44 @@ export class MockExplainProvider implements ExplainProvider {
       default:
         return 'Review details to ensure this subscription still makes sense.';
     }
+  }
+}
+
+export class MockProposalProvider implements ProposalProvider {
+  readonly name = 'mock';
+
+  async proposeRecategorize(
+    subscriptions: SubscriptionSummary[],
+  ): Promise<ProposalResult<RecategorizeProposalPayload>> {
+    const recommendations = subscriptions.map((subscription) => ({
+      subscriptionId: subscription.id,
+      proposedCategory: subscription.category ?? 'general',
+      rationale: `Keeping ${subscription.name} under ${subscription.category ?? 'general'} for consistency.`,
+    }));
+
+    return {
+      title: 'Category review',
+      summary: `Reviewed ${subscriptions.length} subscriptions for category alignment.`,
+      payload: { recommendations },
+      confidence: 0.5,
+    };
+  }
+
+  async proposeSavingsList(
+    subscriptions: SubscriptionSummary[],
+  ): Promise<ProposalResult<SavingsListProposalPayload>> {
+    const suggestions = subscriptions.map((subscription) => ({
+      subscriptionId: subscription.id,
+      suggestion: `${subscription.name} could be set to ${intervalLabel(subscription.billingInterval)} billing.`,
+      rationale: `Checked cost ${formatAmount(subscription.amount, subscription.currency)} on ${intervalLabel(subscription.billingInterval)} cadence.`,
+      estimatedSavings: Number((subscription.amount * (subscription.billingInterval === 'YEARLY' ? 0.1 : 0.05)).toFixed(2)),
+    }));
+
+    return {
+      title: 'Savings ideas',
+      summary: `Outlined ${subscriptions.length} saving opportunities for review.`,
+      payload: { suggestions },
+      confidence: 0.48,
+    };
   }
 }

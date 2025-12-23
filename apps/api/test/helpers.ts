@@ -2,7 +2,7 @@ import prisma from '../src/prisma';
 
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "AIActionLog","Notification","NotificationPreference","AuditLog","Session","Subscription","Device","User" RESTART IDENTITY CASCADE;',
+    'TRUNCATE "AIProposal","AIActionLog","Notification","NotificationPreference","AuditLog","Session","Subscription","Device","User" RESTART IDENTITY CASCADE;',
   );
 }
 
