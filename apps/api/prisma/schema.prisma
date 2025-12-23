@@ -22,6 +22,7 @@ model User {
   subscriptions          Subscription[]
   auditLogs              AuditLog[]
   aiActionLogs           AIActionLog[]
+  aiProposals            AIProposal[]
   notificationPreference NotificationPreference?
   notifications          Notification[]
 }
@@ -130,6 +131,23 @@ model AIActionLog {
   @@index([userId, createdAt])
 }
 
+model AIProposal {
+  id         String           @id @default(uuid())
+  userId     String
+  type       AIProposalType
+  status     AIProposalStatus
+  title      String
+  summary    String           @db.VarChar(300)
+  payload    Json
+  confidence Float?
+  createdAt  DateTime         @default(now())
+  expiresAt  DateTime         @default(dbgenerated("now() + interval '14 days'"))
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, status])
+}
+
 enum BillingInterval {
   MONTHLY
   YEARLY
@@ -154,4 +172,16 @@ enum NotificationPriority {
 
 enum AIActionType {
   EXPLAIN
+  PROPOSE
+}
+
+enum AIProposalType {
+  RECATEGORIZE
+  SAVINGS_LIST
+}
+
+enum AIProposalStatus {
+  ACTIVE
+  DISMISSED
+  EXPIRED
 }

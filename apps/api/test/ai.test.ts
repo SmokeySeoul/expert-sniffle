@@ -146,3 +146,170 @@ describe('ai explain endpoints', () => {
     await app.close();
   });
 });
+
+describe('ai proposal endpoints', () => {
+  it('returns 403 when aiAssistEnabled is false', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'proposal-disabled@example.com');
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'StreamCo',
+        amount: new Prisma.Decimal(12),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+      },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    const actionLogs = await prisma.aIActionLog.findMany({ where: { userId } });
+    expect(actionLogs).toHaveLength(1);
+    expect(actionLogs[0]?.success).toBe(false);
+    expect(actionLogs[0]?.actionType).toBe('PROPOSE');
+
+    const auditLogs = await prisma.auditLog.findMany({ where: { userId, action: 'ai.propose_failed' } });
+    expect(auditLogs.length).toBeGreaterThan(0);
+
+    await app.close();
+  });
+
+  it('creates a proposal and logs action + audit entries', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'proposal-enabled@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'CloudDrive',
+        amount: new Prisma.Decimal(7.5),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date('2024-12-15T00:00:00.000Z'),
+        category: 'storage',
+      },
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'SAVINGS_LIST', subscriptionIds: [subscription.id] },
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const proposal = response.json() as { id: string; status: string; type: string; expiresAt: string };
+    expect(proposal.type).toBe('SAVINGS_LIST');
+    expect(proposal.status).toBe('ACTIVE');
+    expect(new Date(proposal.expiresAt).getTime()).toBeGreaterThan(Date.now());
+
+    const auditLogs = await prisma.auditLog.findMany({
+      where: { userId, action: { in: ['ai.propose_requested', 'ai.propose_succeeded'] } },
+    });
+    expect(auditLogs.some((log) => log.action === 'ai.propose_requested')).toBe(true);
+    expect(auditLogs.some((log) => log.action === 'ai.propose_succeeded')).toBe(true);
+
+    const aiLogs = await prisma.aIActionLog.findMany({ where: { userId } });
+    expect(aiLogs).toHaveLength(1);
+    expect(aiLogs[0]?.success).toBe(true);
+    expect(aiLogs[0]?.actionType).toBe('PROPOSE');
+
+    const proposals = await prisma.aIProposal.findMany({ where: { userId } });
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.status).toBe('ACTIVE');
+
+    await app.close();
+  });
+
+  it('prevents cross-user access', async () => {
+    const app = buildServer();
+    const { token: ownerToken, userId } = await registerUser(app, 'proposal-owner@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'OwnerService',
+        amount: new Prisma.Decimal(5),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    const created = creation.json() as { id: string };
+
+    const other = await registerUser(app, 'proposal-other@example.com');
+    await prisma.user.update({ where: { id: other.userId }, data: { aiAssistEnabled: true } });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/ai/proposals/${created.id}`,
+      headers: { authorization: `Bearer ${other.token}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it('dismisses a proposal and records audit', async () => {
+    const app = buildServer();
+    const { token, userId } = await registerUser(app, 'proposal-dismiss@example.com');
+    await prisma.user.update({ where: { id: userId }, data: { aiAssistEnabled: true } });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        name: 'TempService',
+        amount: new Prisma.Decimal(9.99),
+        currency: 'USD',
+        billingInterval: 'MONTHLY',
+        nextBillingDate: new Date(),
+      },
+    });
+
+    const creation = await app.inject({
+      method: 'POST',
+      url: '/api/ai/propose',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'RECATEGORIZE', subscriptionIds: [subscription.id] },
+    });
+
+    const created = creation.json() as { id: string };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/ai/proposals/${created.id}/dismiss`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const proposal = await prisma.aIProposal.findUniqueOrThrow({ where: { id: created.id } });
+    expect(proposal.status).toBe('DISMISSED');
+
+    const auditLogs = await prisma.auditLog.findMany({ where: { userId, action: 'ai.proposal.dismissed' } });
+    expect(auditLogs.length).toBeGreaterThan(0);
+
+    await app.close();
+  });
+});
