@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import SubscriptionsPage from './pages/SubscriptionsPage';
+import InsightsPage from './pages/InsightsPage';
 
 const navLinks = [
   { path: '/', label: 'Home' },
@@ -36,12 +37,7 @@ function App() {
           </div>
         );
       case '/insights':
-        return (
-          <div className="card">
-            <h2>Insights</h2>
-            <p>View subscription totals and trends. Visit Subscriptions to see current totals.</p>
-          </div>
-        );
+        return <InsightsPage />;
       default:
         return (
           <div className="card">
