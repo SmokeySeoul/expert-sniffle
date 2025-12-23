@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+FROM node:20-alpine AS builder
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY apps/api/package*.json apps/api/
+COPY apps/api/tsconfig.json apps/api/
+
+RUN npm install
+
+COPY . .
+RUN npm run build --workspace api
+RUN npm prune --omit=dev
+
+FROM node:20-alpine AS runner
+WORKDIR /usr/src/app
+ENV NODE_ENV=production
+
+COPY --from=builder /usr/src/app/package*.json ./
+COPY --from=builder /usr/src/app/apps/api/package*.json ./apps/api/
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/apps/api/dist ./apps/api/dist
+
+CMD ["node", "apps/api/dist/worker.js"]
