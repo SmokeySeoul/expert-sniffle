@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import InsightsPage from './pages/InsightsPage';
 import TrustCenterPage from './pages/TrustCenterPage';
+import AuthPage from './pages/AuthPage';
 
 const navLinks = [
   { path: '/', label: 'Home' },
@@ -34,6 +35,8 @@ function App() {
         return <TrustCenterPage />;
       case '/insights':
         return <InsightsPage />;
+      case '/auth':
+        return <AuthPage />;
       default:
         return (
           <div className="card">
