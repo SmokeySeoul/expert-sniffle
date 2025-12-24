@@ -26,6 +26,7 @@ const SAMPLE_SUBSCRIPTIONS = [
     category: 'Entertainment',
     active: true,
     isTrial: false,
+    status: 'active' as const,
   },
   {
     id: '2',
@@ -37,6 +38,7 @@ const SAMPLE_SUBSCRIPTIONS = [
     category: 'Music',
     active: true,
     isTrial: false,
+    status: 'active' as const,
   },
   {
     id: '3',
@@ -48,6 +50,7 @@ const SAMPLE_SUBSCRIPTIONS = [
     category: 'Software',
     active: true,
     isTrial: false,
+    status: 'active' as const,
   },
   {
     id: '4',
@@ -59,6 +62,7 @@ const SAMPLE_SUBSCRIPTIONS = [
     category: 'Productivity',
     active: true,
     isTrial: true,
+    status: 'active' as const,
   },
   {
     id: '5',
@@ -70,10 +74,22 @@ const SAMPLE_SUBSCRIPTIONS = [
     category: 'Entertainment',
     active: true,
     isTrial: false,
+    status: 'active' as const,
   },
 ];
 
-type Subscription = typeof SAMPLE_SUBSCRIPTIONS[0];
+type Subscription = {
+  id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  billingInterval: 'MONTHLY' | 'YEARLY';
+  nextBillingDate: string;
+  category?: string | null;
+  active: boolean;
+  isTrial?: boolean;
+  status: 'active' | 'paused' | 'cancelled';
+};
 
 type AddSubscriptionForm = {
   name: string;
@@ -176,6 +192,7 @@ function SubscriptionsPage() {
     notes: '',
   });
   const [addConfirmation, setAddConfirmation] = useState<string | null>(null);
+  const [actionConfirmations, setActionConfirmations] = useState<Record<string, string | null>>({});
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   // Persist subscriptions to localStorage whenever they change
@@ -232,6 +249,7 @@ function SubscriptionsPage() {
       category: addForm.notes || 'Manual',
       active: true,
       isTrial: addForm.billingInterval === 'TRIAL',
+      status: 'active',
     };
 
     // Add to local state
@@ -248,6 +266,42 @@ function SubscriptionsPage() {
     if (e.key === 'Escape') {
       handleCloseAddModal();
     }
+  };
+
+  const handlePauseSubscription = (id: string) => {
+    setUserSubscriptions((prev) =>
+      prev.map((sub) =>
+        sub.id === id ? { ...sub, status: 'paused' as const } : sub
+      )
+    );
+    setActionConfirmations((prev) => ({ ...prev, [id]: 'Marked as paused — no action taken externally' }));
+    setTimeout(() => {
+      setActionConfirmations((prev) => ({ ...prev, [id]: null }));
+    }, 3000);
+  };
+
+  const handleCancelSubscription = (id: string) => {
+    setUserSubscriptions((prev) =>
+      prev.map((sub) =>
+        sub.id === id ? { ...sub, status: 'cancelled' as const } : sub
+      )
+    );
+    setActionConfirmations((prev) => ({ ...prev, [id]: 'Marked as cancelled — tracking only' }));
+    setTimeout(() => {
+      setActionConfirmations((prev) => ({ ...prev, [id]: null }));
+    }, 3000);
+  };
+
+  const handleResumeSubscription = (id: string) => {
+    setUserSubscriptions((prev) =>
+      prev.map((sub) =>
+        sub.id === id ? { ...sub, status: 'active' as const } : sub
+      )
+    );
+    setActionConfirmations((prev) => ({ ...prev, [id]: 'Marked as active' }));
+    setTimeout(() => {
+      setActionConfirmations((prev) => ({ ...prev, [id]: null }));
+    }, 3000);
   };
 
   // Calculate totals from sample data + user-added subscriptions
@@ -479,9 +533,143 @@ function SubscriptionsPage() {
                                 Trial
                               </span>
                             )}
+                            {subscription.status === 'paused' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Paused
+                              </span>
+                            )}
+                            {subscription.status === 'cancelled' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#999',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                  textDecoration: 'line-through',
+                                }}
+                              >
+                                Cancelled
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '13px', color: '#c62828', fontWeight: '500', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          {actionConfirmations[subscription.id] && (
+                            <div style={{ fontSize: '12px', color: '#666', fontWeight: '500', marginBottom: '8px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                              {actionConfirmations[subscription.id]}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            {subscription.status === 'active' && (
+                              <>
+                                <button
+                                  onClick={() => handlePauseSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: '#e3f2fd',
+                                    color: '#1565c0',
+                                    border: '1px solid #1565c0',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#1565c0';
+                                    e.currentTarget.style.color = '#fff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                    e.currentTarget.style.color = '#1565c0';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Pause
+                                </button>
+                                <button
+                                  onClick={() => handleCancelSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'transparent',
+                                    color: '#999',
+                                    border: '1px solid #e8e8e8',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                    e.currentTarget.style.borderColor = '#999';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.borderColor = '#e8e8e8';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {subscription.status === 'paused' && (
+                              <button
+                                onClick={() => handleResumeSubscription(subscription.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  border: '1px solid #1565c0',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease-out',
+                                  fontWeight: '500',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#1565c0';
+                                  e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                  e.currentTarget.style.color = '#1565c0';
+                                }}
+                                onFocus={(e) => {
+                                  Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                }}
+                                onBlur={(e) => {
+                                  e.currentTarget.style.outline = 'none';
+                                }}
+                              >
+                                Resume
+                              </button>
+                            )}
                           </div>
                           <ExplanationToggle
                             id={subscription.id}
@@ -555,9 +743,143 @@ function SubscriptionsPage() {
                                 Trial
                               </span>
                             )}
+                            {subscription.status === 'paused' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Paused
+                              </span>
+                            )}
+                            {subscription.status === 'cancelled' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#999',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                  textDecoration: 'line-through',
+                                }}
+                              >
+                                Cancelled
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          {actionConfirmations[subscription.id] && (
+                            <div style={{ fontSize: '12px', color: '#666', fontWeight: '500', marginBottom: '8px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                              {actionConfirmations[subscription.id]}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            {subscription.status === 'active' && (
+                              <>
+                                <button
+                                  onClick={() => handlePauseSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: '#e3f2fd',
+                                    color: '#1565c0',
+                                    border: '1px solid #1565c0',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#1565c0';
+                                    e.currentTarget.style.color = '#fff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                    e.currentTarget.style.color = '#1565c0';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Pause
+                                </button>
+                                <button
+                                  onClick={() => handleCancelSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'transparent',
+                                    color: '#999',
+                                    border: '1px solid #e8e8e8',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                    e.currentTarget.style.borderColor = '#999';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.borderColor = '#e8e8e8';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {subscription.status === 'paused' && (
+                              <button
+                                onClick={() => handleResumeSubscription(subscription.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  border: '1px solid #1565c0',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease-out',
+                                  fontWeight: '500',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#1565c0';
+                                  e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                  e.currentTarget.style.color = '#1565c0';
+                                }}
+                                onFocus={(e) => {
+                                  Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                }}
+                                onBlur={(e) => {
+                                  e.currentTarget.style.outline = 'none';
+                                }}
+                              >
+                                Resume
+                              </button>
+                            )}
                           </div>
                           <ExplanationToggle
                             id={subscription.id}
@@ -631,9 +953,143 @@ function SubscriptionsPage() {
                                 Trial
                               </span>
                             )}
+                            {subscription.status === 'paused' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Paused
+                              </span>
+                            )}
+                            {subscription.status === 'cancelled' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#999',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                  textDecoration: 'line-through',
+                                }}
+                              >
+                                Cancelled
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          {actionConfirmations[subscription.id] && (
+                            <div style={{ fontSize: '12px', color: '#666', fontWeight: '500', marginBottom: '8px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                              {actionConfirmations[subscription.id]}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            {subscription.status === 'active' && (
+                              <>
+                                <button
+                                  onClick={() => handlePauseSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: '#e3f2fd',
+                                    color: '#1565c0',
+                                    border: '1px solid #1565c0',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#1565c0';
+                                    e.currentTarget.style.color = '#fff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                    e.currentTarget.style.color = '#1565c0';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Pause
+                                </button>
+                                <button
+                                  onClick={() => handleCancelSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'transparent',
+                                    color: '#999',
+                                    border: '1px solid #e8e8e8',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                    e.currentTarget.style.borderColor = '#999';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.borderColor = '#e8e8e8';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {subscription.status === 'paused' && (
+                              <button
+                                onClick={() => handleResumeSubscription(subscription.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  border: '1px solid #1565c0',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease-out',
+                                  fontWeight: '500',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#1565c0';
+                                  e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                  e.currentTarget.style.color = '#1565c0';
+                                }}
+                                onFocus={(e) => {
+                                  Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                }}
+                                onBlur={(e) => {
+                                  e.currentTarget.style.outline = 'none';
+                                }}
+                              >
+                                Resume
+                              </button>
+                            )}
                           </div>
                           <ExplanationToggle
                             id={subscription.id}
@@ -708,9 +1164,138 @@ function SubscriptionsPage() {
                                 Trial
                               </span>
                             )}
+                            {subscription.status === 'paused' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Paused
+                              </span>
+                            )}
+                            {subscription.status === 'cancelled' && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#999',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                  textDecoration: 'line-through',
+                                }}
+                              >
+                                Cancelled
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '14px', color: '#999', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                            {subscription.status === 'active' && (
+                              <>
+                                <button
+                                  onClick={() => handlePauseSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: '#e3f2fd',
+                                    color: '#1565c0',
+                                    border: '1px solid #1565c0',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#1565c0';
+                                    e.currentTarget.style.color = '#fff';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                    e.currentTarget.style.color = '#1565c0';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Pause
+                                </button>
+                                <button
+                                  onClick={() => handleCancelSubscription(subscription.id)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'transparent',
+                                    color: '#999',
+                                    border: '1px solid #e8e8e8',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease-out',
+                                    fontWeight: '500',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                    e.currentTarget.style.borderColor = '#999';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.borderColor = '#e8e8e8';
+                                  }}
+                                  onFocus={(e) => {
+                                    Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                  }}
+                                  onBlur={(e) => {
+                                    e.currentTarget.style.outline = 'none';
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {subscription.status === 'paused' && (
+                              <button
+                                onClick={() => handleResumeSubscription(subscription.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  backgroundColor: '#e3f2fd',
+                                  color: '#1565c0',
+                                  border: '1px solid #1565c0',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease-out',
+                                  fontWeight: '500',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#1565c0';
+                                  e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                  e.currentTarget.style.color = '#1565c0';
+                                }}
+                                onFocus={(e) => {
+                                  Object.assign(e.currentTarget.style, buttonFocusStyles);
+                                }}
+                                onBlur={(e) => {
+                                  e.currentTarget.style.outline = 'none';
+                                }}
+                              >
+                                Resume
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
