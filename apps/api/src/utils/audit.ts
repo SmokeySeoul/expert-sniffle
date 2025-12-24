@@ -1,7 +1,19 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma';
 
-const SENSITIVE_KEYS = ['password', 'passwordHash', 'token', 'refreshToken', 'accessToken', 'email'];
+const SENSITIVE_KEYS = [
+  'password',
+  'passwordhash',
+  'token',
+  'refreshtoken',
+  'accesstoken',
+  'email',
+  'authorization',
+  'cookie',
+  'apikey',
+  'api_key',
+  'secret',
+];
 
 interface AuditParams {
   userId: string;
