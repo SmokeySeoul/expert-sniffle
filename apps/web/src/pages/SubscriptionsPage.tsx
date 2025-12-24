@@ -115,6 +115,51 @@ const saveSubscriptionsToStorage = (subscriptions: Subscription[]): void => {
   }
 };
 
+// Calculate days until renewal
+const daysUntilRenewal = (dateString: string): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const renewalDate = new Date(dateString);
+  renewalDate.setHours(0, 0, 0, 0);
+  const diff = renewalDate.getTime() - today.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+// Group subscriptions by timeline period
+type TimelineGroup = 'within24h' | 'within7days' | 'within30days' | 'later';
+
+const getTimelineGroup = (subscription: Subscription): TimelineGroup => {
+  const days = daysUntilRenewal(subscription.nextBillingDate);
+  if (days <= 1) return 'within24h';
+  if (days <= 7) return 'within7days';
+  if (days <= 30) return 'within30days';
+  return 'later';
+};
+
+const groupSubscriptionsByTimeline = (subs: Subscription[]) => {
+  const grouped: Record<TimelineGroup, Subscription[]> = {
+    within24h: [],
+    within7days: [],
+    within30days: [],
+    later: [],
+  };
+
+  subs.forEach((sub) => {
+    const group = getTimelineGroup(sub);
+    grouped[group].push(sub);
+  });
+
+  // Sort each group by date
+  Object.keys(grouped).forEach((key) => {
+    grouped[key as TimelineGroup].sort(
+      (a, b) =>
+        new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime()
+    );
+  });
+
+  return grouped;
+};
+
 function SubscriptionsPage() {
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
@@ -330,9 +375,9 @@ function SubscriptionsPage() {
         </div>
       )}
 
-      {/* Upcoming Section */}
+      {/* Timeline View */}
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>Upcoming</h2>
+        <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>Timeline</h2>
 
         {allSubscriptions.length === 0 ? (
           <div 
@@ -346,10 +391,10 @@ function SubscriptionsPage() {
           >
             <div style={{ marginBottom: '24px' }}>
               <p style={{ margin: '0 0 12px 0', color: '#333', fontSize: '18px', fontWeight: '500', lineHeight: '1.4' }}>
-                Nothing needs attention today.
+                Nothing to do right now.
               </p>
               <p style={{ margin: 0, color: '#999', fontSize: '14px', lineHeight: '1.5' }}>
-                No renewals coming up. You're all set.
+                No renewals on the horizon. You're all set.
               </p>
             </div>
             <p style={{ margin: '16px 0 0 0', color: '#bbb', fontSize: '12px', lineHeight: '1.5' }}>
@@ -385,124 +430,425 @@ function SubscriptionsPage() {
               Add subscription
             </button>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {allSubscriptions.map((subscription) => (
-              <div 
-                key={subscription.id}
-                style={{
-                  padding: '16px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #e8e8e8',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  gap: '16px',
-                  opacity: subscription.id.startsWith('manual-') ? 0.9 : 1,
-                  transition: 'all 0.2s ease-out',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
-                      {subscription.name}
-                    </h3>
-                    {subscription.isTrial && (
-                      <span 
+        ) : (() => {
+          const grouped = groupSubscriptionsByTimeline(allSubscriptions);
+          const hasAny = Object.values(grouped).some((g) => g.length > 0);
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              {/* Within 24 hours */}
+              {grouped.within24h.length > 0 && (
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                    Today or tomorrow
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {grouped.within24h.map((subscription) => (
+                      <div 
+                        key={subscription.id}
                         style={{
-                          padding: '2px 8px',
-                          backgroundColor: '#fff3cd',
-                          color: '#856404',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          borderRadius: '4px',
-                          textTransform: 'uppercase',
+                          padding: '16px',
+                          backgroundColor: '#fff',
+                          border: '2px solid #ffebee',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: '16px',
+                          transition: 'all 0.2s ease-out',
                         }}
                       >
-                        Trial
-                      </span>
-                    )}
-                    {!subscription.isTrial && (
-                      <span 
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+                              {subscription.name}
+                            </h4>
+                            {subscription.isTrial && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#fff3cd',
+                                  color: '#856404',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Trial
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '13px', color: '#c62828', fontWeight: '500', marginBottom: '4px' }}>
+                            Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          <button
+                            onClick={() => toggleExplanation(subscription.id)}
+                            style={{
+                              padding: 0,
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: '#0066cc',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                              ...buttonBaseStyles,
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#004499';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#0066cc';
+                            }}
+                            onFocus={(e) => {
+                              Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.outline = 'none';
+                            }}
+                          >
+                            Why am I seeing this?
+                          </button>
+                          {expandedExplanations[subscription.id] && (
+                            <div 
+                              style={{
+                                marginTop: '8px',
+                                padding: '8px 0',
+                                borderTop: '1px solid #e8e8e8',
+                                paddingTop: '8px',
+                                fontSize: '13px',
+                                color: '#666',
+                                lineHeight: '1.5',
+                              }}
+                            >
+                              {subscription.id.startsWith('manual-') ? (
+                                <p style={{ margin: 0 }}>
+                                  This renewal is coming up very soon. You added it manually.
+                                </p>
+                              ) : (
+                                <p style={{ margin: 0 }}>
+                                  This <strong>{subscription.category}</strong> subscription renews within the next 24 hours.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
+                            {formatAmount(subscription.amount, subscription.currency)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                            per {subscription.billingInterval === 'MONTHLY' ? 'month' : 'year'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Within 7 days */}
+              {grouped.within7days.length > 0 && (
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                    Next 7 days
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {grouped.within7days.map((subscription) => (
+                      <div 
+                        key={subscription.id}
                         style={{
-                          padding: '2px 8px',
-                          backgroundColor: '#d4edda',
-                          color: '#155724',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          borderRadius: '4px',
-                          textTransform: 'uppercase',
+                          padding: '16px',
+                          backgroundColor: '#fff',
+                          border: '1px solid #e8e8e8',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: '16px',
+                          transition: 'all 0.2s ease-out',
                         }}
                       >
-                        {subscription.billingInterval === 'MONTHLY' ? 'Monthly' : 'Yearly'}
-                      </span>
-                    )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+                              {subscription.name}
+                            </h4>
+                            {subscription.isTrial && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#fff3cd',
+                                  color: '#856404',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Trial
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                            Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          <button
+                            onClick={() => toggleExplanation(subscription.id)}
+                            style={{
+                              padding: 0,
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: '#0066cc',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                              ...buttonBaseStyles,
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#004499';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#0066cc';
+                            }}
+                            onFocus={(e) => {
+                              Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.outline = 'none';
+                            }}
+                          >
+                            Why am I seeing this?
+                          </button>
+                          {expandedExplanations[subscription.id] && (
+                            <div 
+                              style={{
+                                marginTop: '8px',
+                                padding: '8px 0',
+                                borderTop: '1px solid #e8e8e8',
+                                paddingTop: '8px',
+                                fontSize: '13px',
+                                color: '#666',
+                                lineHeight: '1.5',
+                              }}
+                            >
+                              {subscription.id.startsWith('manual-') ? (
+                                <p style={{ margin: 0 }}>
+                                  This renewal is coming up within the next week. You added it manually.
+                                </p>
+                              ) : (
+                                <p style={{ margin: 0 }}>
+                                  This <strong>{subscription.category}</strong> subscription renews in the next 7 days.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
+                            {formatAmount(subscription.amount, subscription.currency)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                            per {subscription.billingInterval === 'MONTHLY' ? 'month' : 'year'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
-                    Renews {formatDate(subscription.nextBillingDate)}
-                  </div>
-                  <button
-                    onClick={() => toggleExplanation(subscription.id)}
-                    style={{
-                      padding: 0,
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      color: '#0066cc',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                      ...buttonBaseStyles,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#004499';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#0066cc';
-                    }}
-                    onFocus={(e) => {
-                      Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.outline = 'none';
-                    }}
-                  >
-                    Why am I seeing this?
-                  </button>
-                  {expandedExplanations[subscription.id] && (
-                    <div 
-                      style={{
-                        marginTop: '8px',
-                        padding: '8px 0',
-                        borderTop: '1px solid #e8e8e8',
-                        paddingTop: '8px',
-                        fontSize: '13px',
-                        color: '#666',
-                        lineHeight: '1.5',
-                      }}
-                    >
-                      {subscription.id.startsWith('manual-') ? (
-                        <p style={{ margin: 0 }}>You added it manually.</p>
-                      ) : (
-                        <p style={{ margin: 0 }}>
-                          This <strong>{subscription.category}</strong> subscription is active and will renew on the scheduled date.
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
-                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
-                    {formatAmount(subscription.amount, subscription.currency)}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                    per {subscription.billingInterval === 'MONTHLY' ? 'month' : 'year'}
+              )}
+
+              {/* Within 30 days */}
+              {grouped.within30days.length > 0 && (
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                    Next 30 days
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {grouped.within30days.map((subscription) => (
+                      <div 
+                        key={subscription.id}
+                        style={{
+                          padding: '16px',
+                          backgroundColor: '#fff',
+                          border: '1px solid #e8e8e8',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: '16px',
+                          transition: 'all 0.2s ease-out',
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+                              {subscription.name}
+                            </h4>
+                            {subscription.isTrial && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#fff3cd',
+                                  color: '#856404',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Trial
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                            Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                          <button
+                            onClick={() => toggleExplanation(subscription.id)}
+                            style={{
+                              padding: 0,
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: '#0066cc',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                              ...buttonBaseStyles,
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#004499';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#0066cc';
+                            }}
+                            onFocus={(e) => {
+                              Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.outline = 'none';
+                            }}
+                          >
+                            Why am I seeing this?
+                          </button>
+                          {expandedExplanations[subscription.id] && (
+                            <div 
+                              style={{
+                                marginTop: '8px',
+                                padding: '8px 0',
+                                borderTop: '1px solid #e8e8e8',
+                                paddingTop: '8px',
+                                fontSize: '13px',
+                                color: '#666',
+                                lineHeight: '1.5',
+                              }}
+                            >
+                              {subscription.id.startsWith('manual-') ? (
+                                <p style={{ margin: 0 }}>
+                                  This renewal is coming up within the next month. You added it manually.
+                                </p>
+                              ) : (
+                                <p style={{ margin: 0 }}>
+                                  This <strong>{subscription.category}</strong> subscription renews within 30 days.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
+                            {formatAmount(subscription.amount, subscription.currency)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                            per {subscription.billingInterval === 'MONTHLY' ? 'month' : 'year'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+
+              {/* Later */}
+              {grouped.later.length > 0 && (
+                <div>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#999' }}>
+                    Further ahead
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {grouped.later.map((subscription) => (
+                      <div 
+                        key={subscription.id}
+                        style={{
+                          padding: '16px',
+                          backgroundColor: '#fff',
+                          border: '1px solid #e8e8e8',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: '16px',
+                          opacity: 0.7,
+                          transition: 'all 0.2s ease-out',
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+                              {subscription.name}
+                            </h4>
+                            {subscription.isTrial && (
+                              <span 
+                                style={{
+                                  padding: '2px 8px',
+                                  backgroundColor: '#fff3cd',
+                                  color: '#856404',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                Trial
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#999', marginBottom: '8px' }}>
+                            Renews {formatDate(subscription.nextBillingDate)}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
+                            {formatAmount(subscription.amount, subscription.currency)}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                            per {subscription.billingInterval === 'MONTHLY' ? 'month' : 'year'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!hasAny && (
+                <div 
+                  style={{
+                    padding: '40px 20px',
+                    textAlign: 'center',
+                    backgroundColor: '#fafafa',
+                    border: '1px solid #e8e8e8',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+                    Nothing to do right now.
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Add Subscription Modal */}
