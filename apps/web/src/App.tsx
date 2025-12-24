@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import InsightsPage from './pages/InsightsPage';
+import TrustCenterPage from './pages/TrustCenterPage';
 
 const navLinks = [
   { path: '/', label: 'Home' },
@@ -30,12 +31,7 @@ function App() {
       case '/subscriptions':
         return <SubscriptionsPage />;
       case '/trust-center':
-        return (
-          <div className="card">
-            <h2>Trust Center</h2>
-            <p>Review and adjust permissions for data access and AI assistance.</p>
-          </div>
-        );
+        return <TrustCenterPage />;
       case '/insights':
         return <InsightsPage />;
       default:
