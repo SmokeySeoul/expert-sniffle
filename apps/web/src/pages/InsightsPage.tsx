@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ExplanationToggle } from '../components/ExplanationToggle';
 
 type Totals = {
   monthlyTotal: number;
@@ -13,6 +14,14 @@ function InsightsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
+
+  const toggleExplanation = (id: string) => {
+    setExpandedExplanations((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('accessToken');
@@ -105,14 +114,36 @@ function InsightsPage() {
         {loading ? (
           <p>Loading insights...</p>
         ) : totals ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
             <div>
-              <div className="muted">Monthly total</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{formatAmount(totals.monthlyTotal)}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                <div className="muted">Monthly total</div>
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px' }}>{formatAmount(totals.monthlyTotal)}</div>
+              <ExplanationToggle
+                id="monthly-total"
+                isExpanded={expandedExplanations['monthly-total'] || false}
+                onToggle={toggleExplanation}
+              >
+                <p style={{ margin: 0 }}>
+                  This is the sum of all your subscriptions that renew monthly. It shows what you're spending on a recurring basis each month.
+                </p>
+              </ExplanationToggle>
             </div>
             <div>
-              <div className="muted">Yearly total</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{formatAmount(totals.yearlyTotal)}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+                <div className="muted">Yearly total</div>
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px' }}>{formatAmount(totals.yearlyTotal)}</div>
+              <ExplanationToggle
+                id="yearly-total"
+                isExpanded={expandedExplanations['yearly-total'] || false}
+                onToggle={toggleExplanation}
+              >
+                <p style={{ margin: 0 }}>
+                  This includes both your monthly subscriptions (multiplied by 12) and your yearly subscriptions. It's your total annual spending if everything stays the same.
+                </p>
+              </ExplanationToggle>
             </div>
           </div>
         ) : (

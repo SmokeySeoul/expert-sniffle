@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { ExplanationToggle } from '../components/ExplanationToggle';
 
 // Shared button focus styles
 const buttonBaseStyles = {
@@ -479,59 +480,24 @@ function SubscriptionsPage() {
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '13px', color: '#c62828', fontWeight: '500', marginBottom: '4px' }}>
+                          <div style={{ fontSize: '13px', color: '#c62828', fontWeight: '500', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
                           </div>
-                          <button
-                            onClick={() => toggleExplanation(subscription.id)}
-                            style={{
-                              padding: 0,
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              color: '#0066cc',
-                              fontSize: '13px',
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              ...buttonBaseStyles,
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = '#004499';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = '#0066cc';
-                            }}
-                            onFocus={(e) => {
-                              Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
-                            }}
-                            onBlur={(e) => {
-                              e.currentTarget.style.outline = 'none';
-                            }}
+                          <ExplanationToggle
+                            id={subscription.id}
+                            isExpanded={expandedExplanations[subscription.id] || false}
+                            onToggle={toggleExplanation}
                           >
-                            Why am I seeing this?
-                          </button>
-                          {expandedExplanations[subscription.id] && (
-                            <div 
-                              style={{
-                                marginTop: '8px',
-                                padding: '8px 0',
-                                borderTop: '1px solid #e8e8e8',
-                                paddingTop: '8px',
-                                fontSize: '13px',
-                                color: '#666',
-                                lineHeight: '1.5',
-                              }}
-                            >
-                              {subscription.id.startsWith('manual-') ? (
-                                <p style={{ margin: 0 }}>
-                                  This renewal is coming up very soon. You added it manually.
-                                </p>
-                              ) : (
-                                <p style={{ margin: 0 }}>
-                                  This <strong>{subscription.category}</strong> subscription renews within the next 24 hours.
-                                </p>
-                              )}
-                            </div>
-                          )}
+                            {subscription.id.startsWith('manual-') ? (
+                              <p style={{ margin: 0 }}>
+                                This renewal is coming up very soon. You added it manually.
+                              </p>
+                            ) : (
+                              <p style={{ margin: 0 }}>
+                                This <strong>{subscription.category}</strong> subscription renews within the next 24 hours.
+                              </p>
+                            )}
+                          </ExplanationToggle>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
@@ -593,56 +559,21 @@ function SubscriptionsPage() {
                           <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
                           </div>
-                          <button
-                            onClick={() => toggleExplanation(subscription.id)}
-                            style={{
-                              padding: 0,
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              color: '#0066cc',
-                              fontSize: '13px',
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              ...buttonBaseStyles,
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = '#004499';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = '#0066cc';
-                            }}
-                            onFocus={(e) => {
-                              Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
-                            }}
-                            onBlur={(e) => {
-                              e.currentTarget.style.outline = 'none';
-                            }}
+                          <ExplanationToggle
+                            id={subscription.id}
+                            isExpanded={expandedExplanations[subscription.id] || false}
+                            onToggle={toggleExplanation}
                           >
-                            Why am I seeing this?
-                          </button>
-                          {expandedExplanations[subscription.id] && (
-                            <div 
-                              style={{
-                                marginTop: '8px',
-                                padding: '8px 0',
-                                borderTop: '1px solid #e8e8e8',
-                                paddingTop: '8px',
-                                fontSize: '13px',
-                                color: '#666',
-                                lineHeight: '1.5',
-                              }}
-                            >
-                              {subscription.id.startsWith('manual-') ? (
-                                <p style={{ margin: 0 }}>
-                                  This renewal is coming up within the next week. You added it manually.
-                                </p>
-                              ) : (
-                                <p style={{ margin: 0 }}>
-                                  This <strong>{subscription.category}</strong> subscription renews in the next 7 days.
-                                </p>
-                              )}
-                            </div>
-                          )}
+                            {subscription.id.startsWith('manual-') ? (
+                              <p style={{ margin: 0 }}>
+                                This renewal is coming up within the next week. You added it manually.
+                              </p>
+                            ) : (
+                              <p style={{ margin: 0 }}>
+                                This <strong>{subscription.category}</strong> subscription renews in the next 7 days.
+                              </p>
+                            )}
+                          </ExplanationToggle>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
@@ -704,56 +635,21 @@ function SubscriptionsPage() {
                           <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
                             Renews {formatDate(subscription.nextBillingDate)}
                           </div>
-                          <button
-                            onClick={() => toggleExplanation(subscription.id)}
-                            style={{
-                              padding: 0,
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              color: '#0066cc',
-                              fontSize: '13px',
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              ...buttonBaseStyles,
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = '#004499';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = '#0066cc';
-                            }}
-                            onFocus={(e) => {
-                              Object.assign(e.currentTarget.style, { ...buttonFocusStyles, outlineOffset: '1px' });
-                            }}
-                            onBlur={(e) => {
-                              e.currentTarget.style.outline = 'none';
-                            }}
+                          <ExplanationToggle
+                            id={subscription.id}
+                            isExpanded={expandedExplanations[subscription.id] || false}
+                            onToggle={toggleExplanation}
                           >
-                            Why am I seeing this?
-                          </button>
-                          {expandedExplanations[subscription.id] && (
-                            <div 
-                              style={{
-                                marginTop: '8px',
-                                padding: '8px 0',
-                                borderTop: '1px solid #e8e8e8',
-                                paddingTop: '8px',
-                                fontSize: '13px',
-                                color: '#666',
-                                lineHeight: '1.5',
-                              }}
-                            >
-                              {subscription.id.startsWith('manual-') ? (
-                                <p style={{ margin: 0 }}>
-                                  This renewal is coming up within the next month. You added it manually.
-                                </p>
-                              ) : (
-                                <p style={{ margin: 0 }}>
-                                  This <strong>{subscription.category}</strong> subscription renews within 30 days.
-                                </p>
-                              )}
-                            </div>
-                          )}
+                            {subscription.id.startsWith('manual-') ? (
+                              <p style={{ margin: 0 }}>
+                                This renewal is coming up within the next month. You added it manually.
+                              </p>
+                            ) : (
+                              <p style={{ margin: 0 }}>
+                                This <strong>{subscription.category}</strong> subscription renews within 30 days.
+                              </p>
+                            )}
+                          </ExplanationToggle>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ fontSize: '18px', fontWeight: '600', color: '#000' }}>
