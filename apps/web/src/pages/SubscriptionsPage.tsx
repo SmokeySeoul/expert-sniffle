@@ -132,6 +132,11 @@ function SubscriptionsPage() {
   const [addConfirmation, setAddConfirmation] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
 
+  // Persist subscriptions to localStorage whenever they change
+  useEffect(() => {
+    saveSubscriptionsToStorage(userSubscriptions);
+  }, [userSubscriptions]);
+
   const toggleExplanation = (id: string) => {
     setExpandedExplanations((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -813,6 +818,13 @@ function SubscriptionsPage() {
           </div>
         </>
       )}
+
+      {/* Local storage trust message */}
+      <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #e8e8e8', textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: '#999', lineHeight: '1.5' }}>
+          Saved locally on this device. Nothing is synced unless you choose to later.
+        </p>
+      </div>
     </div>
   );
 }
