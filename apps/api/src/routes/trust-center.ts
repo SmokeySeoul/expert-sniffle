@@ -23,6 +23,7 @@ export async function trustCenterRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // TRUST BOUNDARY: Do not auto-enable permissions without explicit user consent.
   app.patch<{ Body: PermissionPatchBody }>(
     '/',
     {

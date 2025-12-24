@@ -10,6 +10,7 @@ const JOB_NAME = 'notifications:sweep';
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const REPEAT_EVERY_MS = 60 * 60 * 1000;
 
+// CALM MVP: background jobs must remain explainable and never auto-enable user-facing changes.
 async function startWorker(): Promise<void> {
   const queue = createQueue(QUEUE_NAME);
   const privacyQueue = createQueue(PRIVACY_QUEUE_NAME);
