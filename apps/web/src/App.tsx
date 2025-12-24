@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import HomePage from './pages/HomePage';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import InsightsPage from './pages/InsightsPage';
 import TrustCenterPage from './pages/TrustCenterPage';
@@ -38,12 +39,7 @@ function App() {
       case '/auth':
         return <AuthPage />;
       default:
-        return (
-          <div className="card">
-            <h2>Welcome</h2>
-            <p>Use the navigation to manage subscriptions, permissions, and insights.</p>
-          </div>
-        );
+        return <HomePage />;
     }
   }, [path]);
 
