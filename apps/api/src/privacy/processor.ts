@@ -187,6 +187,7 @@ async function writeExportZip(jobId: string, userId: string): Promise<{ path: st
 }
 
 async function deleteUserData(userId: string): Promise<void> {
+  // CALM MVP: destructive actions must be explicitly confirmed and auditable.
   await prisma.$transaction(async (tx) => {
     await tx.session.updateMany({
       where: { userId },

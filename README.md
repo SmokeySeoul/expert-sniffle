@@ -44,6 +44,10 @@ npm test --workspace api
 
 The test suite exercises authenticated endpoints and requires a running Postgres instance with `DATABASE_URL` set (defaults to `postgresql://substream:substream@localhost:5432/substream?schema=public`).
 
+## Calm MVP guardrails
+- [Calm MVP philosophy](docs/CALM_MVP.md)
+- [Architecture guardrails](docs/ARCHITECTURE_GUARDRAILS.md)
+
 ## Trust Center & permissions
 - The Trust Center exposes user-controlled permission toggles at `/api/trust-center` (GET + PATCH). Flags ship **default-deny**: bank connections, email parsing, AI assistance, and autopilot are all off until explicitly enabled per user.
 - Each flag includes explanation text in responses so users can see the impact of every toggle.

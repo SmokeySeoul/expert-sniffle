@@ -94,6 +94,7 @@ export async function ensureNotificationPreference(
   });
 }
 
+// CALM MVP: notifications should prioritize clarity over engagement and respect quiet hours.
 function getNotificationCandidate(subscription: Subscription, now: Date): NotificationCandidate | null {
   const windowMs = subscription.nextBillingDate.getTime() - now.getTime();
   if (windowMs <= 0) {

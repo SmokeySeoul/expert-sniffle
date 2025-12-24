@@ -1,5 +1,6 @@
 import { User } from '@prisma/client';
 
+// CALM MVP: permissions are default-deny and must remain user-controlled.
 export const PERMISSION_FLAGS = {
   bankConnectionsEnabled: {
     description: 'Allow connecting external bank accounts to import financial data.',

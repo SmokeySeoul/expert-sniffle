@@ -15,6 +15,7 @@ import {
 import { recordAuditLog } from '../utils/audit';
 import { requirePermission } from '../utils/permissions';
 
+// CALM MVP: AI assistance must remain gated, explainable, and user-approved.
 type ExplainBody = {
   topic: ExplainTopic;
   subscriptionIds: string[];
