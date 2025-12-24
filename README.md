@@ -11,6 +11,7 @@ This repository contains a minimal Fastify + BullMQ monorepo setup ready for pri
 ```bash
 npm install
 ```
+> Run installs from the repository root so npm can hydrate **all** workspaces (API + web). Skipping a root install leaves web-only dependencies like React and its types missing, which will break `npm run build --workspace web`.
 
 ## Running locally
 Run the API only:
